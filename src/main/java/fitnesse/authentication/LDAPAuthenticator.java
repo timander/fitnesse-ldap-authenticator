@@ -1,5 +1,6 @@
 package fitnesse.authentication;
 
+import com.sun.jndi.ldap.LdapCtxFactory;
 import javax.naming.AuthenticationException;
 import javax.naming.Context;
 import javax.naming.NamingException;
@@ -19,22 +20,26 @@ public class LDAPAuthenticator extends Authenticator {
         this.properties = properties;
     }
 
-    @SuppressWarnings({"UseOfObsoleteCollectionType", "unchecked", "RawUseOfParameterizedType"})
+    @SuppressWarnings({"UseOfObsoleteCollectionType", "unchecked", "RawUseOfParameterizedType", "CallToPrintStackTrace"})
     @Override
     public boolean isAuthenticated(String username, String password) throws Exception {
         if (username == null || password == null) {
             return false;
         }
 
-        Hashtable authEnv = new Hashtable(11);
-        String base = "ou=People,dc=example,dc=com";
-        String dn = "uid=" + username + "," + base;
-        String ldapURL = "ldap://ldap.example.com:389";
+        String searchBase = getProperty("ldap.search.base");
+        String ldapURL = getProperty("ldap.server.url") + "/" + searchBase;
+        String usernameAttribute = getProperty("ldap.username.attribute");
+        String principal = usernameAttribute + "=" + username + "," + searchBase + "?" + usernameAttribute + "?sub?(objectClass=*)";
 
-        authEnv.put(Context.INITIAL_CONTEXT_FACTORY, "com.sun.jndi.ldap.LdapCtxFactory");
+        System.out.println("LDAPAuthenticator.isAuthenticated");
+        System.out.println("principal = " + principal);
+
+        Hashtable authEnv = new Hashtable(11);
+        authEnv.put(Context.INITIAL_CONTEXT_FACTORY, LdapCtxFactory.class.getName());
         authEnv.put(Context.PROVIDER_URL, ldapURL);
         authEnv.put(Context.SECURITY_AUTHENTICATION, "simple");
-        authEnv.put(Context.SECURITY_PRINCIPAL, dn);
+        authEnv.put(Context.SECURITY_PRINCIPAL, principal);
         authEnv.put(Context.SECURITY_CREDENTIALS, password);
 
         try {
@@ -43,14 +48,22 @@ public class LDAPAuthenticator extends Authenticator {
         }
         catch (AuthenticationException ae) {
             ae.printStackTrace();
-            //throw new RuntimeException("Authentication failed!", ae);
         }
         catch (NamingException ne) {
-            //throw new RuntimeException("Something went wrong!", ne);
             ne.printStackTrace();
         }
 
         return false;
+    }
+
+    private String getProperty(String key) {
+        if (properties.getProperty(key) == null) {
+            System.out.println("Property not found [" + key + "] in plugins.properties");
+            return "";
+        }
+        else {
+            return properties.getProperty(key);
+        }
     }
 
 }
