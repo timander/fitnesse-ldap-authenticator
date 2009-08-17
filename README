@@ -1,0 +1,12 @@
+This is a plugin for FitNesse to use LDAP Authentication.
+
+To use:
+
+1. Add the ldap-authentation-${version}.jar to the lib folder of your FitNesse server
+
+2. Add the following line to your plugins.properties
+      Authenticator=fitnesse.authentication.LDAPAuthenticator
+
+3. Start the FitNesse server with
+      java -cp "lib/ldap-authentation-${version}.jar:fitnesse.jar" fitnesseMain.FitNesseMain [optional args]
+   (NOTE Windows users should use ; for the classpath seperator)
