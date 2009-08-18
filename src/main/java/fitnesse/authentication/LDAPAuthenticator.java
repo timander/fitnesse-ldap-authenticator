@@ -32,9 +32,6 @@ public class LDAPAuthenticator extends Authenticator {
         String usernameAttribute = getProperty("ldap.username.attribute");
         String principal = usernameAttribute + "=" + username + "," + searchBase + "?" + usernameAttribute + "?sub?(objectClass=*)";
 
-        System.out.println("LDAPAuthenticator.isAuthenticated");
-        System.out.println("principal = " + principal);
-
         Hashtable authEnv = new Hashtable(11);
         authEnv.put(Context.INITIAL_CONTEXT_FACTORY, LdapCtxFactory.class.getName());
         authEnv.put(Context.PROVIDER_URL, ldapURL);
@@ -57,6 +54,7 @@ public class LDAPAuthenticator extends Authenticator {
     }
 
     private String getProperty(String key) {
+      if (properties == null) return "";      
         if (properties.getProperty(key) == null) {
             System.out.println("Property not found [" + key + "] in plugins.properties");
             return "";

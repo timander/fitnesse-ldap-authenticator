@@ -2,6 +2,7 @@ package fitnesse.authentication;
 
 import junit.framework.TestCase;
 import org.mockito.Matchers;
+import org.mockito.Mockito;
 import static org.mockito.Mockito.*;
 import javax.naming.AuthenticationException;
 import javax.naming.Context;
@@ -22,9 +23,10 @@ public class LDAPAuthenticatorTest extends TestCase {
         super.setUp();
         Properties properties = new Properties();
         properties.setProperty("ldap.search.base", "ou=People,dc=example,dc=com");
-        properties.setProperty("ldap.server.url", "ldap://ldap.example.com:389");
+        properties.setProperty("ldap.server.url", "ldap://ldap.localhost:389");
         properties.setProperty("ldap.username.attribute", "AccountName");
         authenticator = new LDAPAuthenticator(properties);
+        authenticator.initialDirContextFactory = new CollaboratingFactory();
     }
 
     public void testNullUsername() throws Exception {
@@ -40,6 +42,7 @@ public class LDAPAuthenticatorTest extends TestCase {
     }
 
     public void testNullProperties() throws Exception {
+        authenticator.properties = null;
         assertFalse(authenticator.isAuthenticated("username", "password"));
     }
 
@@ -60,6 +63,14 @@ public class LDAPAuthenticatorTest extends TestCase {
         assertTrue(authenticator.isAuthenticated("username", "password"));
     }
 
+    @SuppressWarnings({"JNDIResourceOpenedButNotSafelyClosed"})
+    public void testNullDirContext() throws Exception {
+        InitialDirContextFactory mockFactory = mock(InitialDirContextFactory.class);
+        when(mockFactory.create(Matchers.isA(Hashtable.class))).thenReturn(null);
+        authenticator.initialDirContextFactory = mockFactory;
+        assertFalse(authenticator.isAuthenticated("username", "password"));
+    }
+
     public void testAuthenticationFailed_NamingException() throws Exception {
         InitialDirContextFactory mockFactory = mock(InitialDirContextFactory.class);
         when(mockFactory.create(Matchers.isA(Hashtable.class))).thenThrow(new NamingException());
@@ -78,7 +89,7 @@ public class LDAPAuthenticatorTest extends TestCase {
         authenticator.initialDirContextFactory = collaboratingFactory;
         authenticator.isAuthenticated("username", "password");
         assertEquals("AccountName=username,ou=People,dc=example,dc=com?AccountName?sub?(objectClass=*)", collaboratingFactory.get(Context.SECURITY_PRINCIPAL));
-        assertEquals("ldap://ldap.example.com:389/ou=People,dc=example,dc=com", collaboratingFactory.get(Context.PROVIDER_URL));
+        assertEquals("ldap://ldap.localhost:389/ou=People,dc=example,dc=com", collaboratingFactory.get(Context.PROVIDER_URL));
         assertEquals("simple", collaboratingFactory.get(Context.SECURITY_AUTHENTICATION));
         assertEquals("password", collaboratingFactory.get(Context.SECURITY_CREDENTIALS));
         assertEquals("com.sun.jndi.ldap.LdapCtxFactory", collaboratingFactory.get(Context.INITIAL_CONTEXT_FACTORY));

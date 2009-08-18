@@ -6,7 +6,7 @@ To use:
 
 2. Add the following line to the plugins.properties of the FitNesse server
       Authenticator=fitnesse.authentication.LDAPAuthenticator
-      ldap.server.url=ldap://ldap.example.com:389
+      ldap.server.url=ldap://ldap.localhost:389
       ldap.search.base=ou=People,dc=example,dc=com
       ldap.username.attribute=AccountName
 
