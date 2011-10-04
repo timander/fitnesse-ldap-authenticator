@@ -11,19 +11,19 @@
         <dependency>
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>
-            <version>3.8.1</version>
+            <version>4.8.2</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.mockito</groupId>
             <artifactId>mockito-all</artifactId>
-            <version>1.8.0</version>
+            <version>1.8.5</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.fitnesse</groupId>
             <artifactId>fitnesse</artifactId>
-            <version>20090709</version>
+            <version>20100303</version>
             <scope>compile</scope>
         </dependency>
     </dependencies>
