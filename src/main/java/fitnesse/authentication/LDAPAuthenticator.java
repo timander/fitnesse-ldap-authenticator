@@ -4,13 +4,9 @@ import javax.naming.AuthenticationException;
 import javax.naming.Context;
 import javax.naming.NamingEnumeration;
 import javax.naming.NamingException;
-import javax.naming.directory.Attribute;
-import javax.naming.directory.Attributes;
 import javax.naming.directory.SearchControls;
 import javax.naming.directory.SearchResult;
 import javax.naming.ldap.LdapContext;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Properties;
 
 
@@ -30,7 +26,6 @@ public class LDAPAuthenticator extends Authenticator {
 
 	@Override
 	public boolean isAuthenticated(String username, String password) throws Exception {
-		//dummy check
 		if (username == null || password == null) return false;
 
 		String usernameAttribute = getProperty("ldap.username.attribute");
@@ -50,29 +45,24 @@ public class LDAPAuthenticator extends Authenticator {
 			context = ldapContextFactory.create(ldapURL, props);
 			log("Authentication succeeded for query user");
 
-			// locate this user's record
 			SearchControls controls = new SearchControls();
 			controls.setSearchScope(SearchControls.SUBTREE_SCOPE);
 
-			//authenticate the user's password
-			applyAuthentication(context, username, password);
-			log("Authentication succeeded for user");
+            applyUserAuthentication(context, username, password);
 
-			String filter = "(& (" + usernameAttribute + "=" + username + ")(objectClass=user))";
-			NamingEnumeration<SearchResult> searchResults = context.search(domainToSearchBase(domainName), filter, controls);
-			if (!searchResults.hasMore()) {
-				log("Cannot locate user information for " + username);
-				throw new NamingException("Cannot locate user information for " + username);
-			}
-
-			SearchResult result = searchResults.next();
-
-			List<String> groupNames = extractGroupNamesFrom(context, result);
-
-			if (groupNames.contains(requiredGroup)) {
-				authenticated = true;
-			}
-		}
+            String userPrincipalName = username + "@" + domainName;
+            String searchBase = domainToSearchBase(domainName);
+            String secureGroupRestriction = "(memberOf=CN=" + requiredGroup + ",OU=Security Groups," + searchBase + "))";
+            String ldapQuery = "(&(" + usernameAttribute + "=" + username + ")(objectClass=user)" +
+                            "(userPrincipalName=" + userPrincipalName + ")" + secureGroupRestriction + ")";
+            log(ldapQuery);
+            NamingEnumeration<SearchResult> searchResults = context.search(searchBase, ldapQuery, controls);
+			if (searchResults.hasMore()) {
+                authenticated = true;
+                log("Authenticated succedded for " + username);
+            }
+            log("Cannot locate user information for " + username);
+        }
 		catch (AuthenticationException a) {
 			log("Authentication failed: " + a);
 		}
@@ -85,21 +75,6 @@ public class LDAPAuthenticator extends Authenticator {
 		return authenticated;
 	}
 
-
-	private List<String> extractGroupNamesFrom(LdapContext context, SearchResult result) throws NamingException {
-		List<String> groups = new ArrayList<String>();
-		Attribute memberOf = result.getAttributes().get("memberOf");
-		if (memberOf != null) {
-			for (int i = 0; i < memberOf.size(); i++) {
-				Attributes attributes = context.getAttributes(memberOf.get(i).toString(), new String[]{"CN"});
-				Attribute attribute = attributes.get("CN");
-				groups.add(attribute.get().toString());
-			}
-		}
-		return groups;
-	}
-
-
 	private Properties setupAuthorizedEnv(String queryUsername, String queryPassword) {
 		Properties authEnvProperties = new Properties();
 		authEnvProperties.setProperty(Context.SECURITY_AUTHENTICATION, DIGEST_MD5_AUTHENTICATION);
@@ -109,9 +84,9 @@ public class LDAPAuthenticator extends Authenticator {
 	}
 
 
-	protected void applyAuthentication(LdapContext ctx, String userDn, String password) throws NamingException {
+	protected void applyUserAuthentication(LdapContext ctx, String username, String password) throws NamingException {
 		ctx.addToEnvironment(Context.SECURITY_AUTHENTICATION, DIGEST_MD5_AUTHENTICATION);
-		ctx.addToEnvironment(Context.SECURITY_PRINCIPAL, userDn);
+		ctx.addToEnvironment(Context.SECURITY_PRINCIPAL, username);
 		ctx.addToEnvironment(Context.SECURITY_CREDENTIALS, password);
 	}
 
