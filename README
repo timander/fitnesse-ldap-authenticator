@@ -11,7 +11,7 @@ To use:
       ldap.username.attribute=AccountName
       ldap.queryuser.username=queryuser
       ldap.queryuser.password=querypass
-      ldap.required.group=testgroup
+      ldap.security.group=testgroup
 
 3. Start the FitNesse server with
       java -cp "lib/ldap-authentation-${version}.jar:fitnesse.jar" fitnesseMain.FitNesseMain [optional args]

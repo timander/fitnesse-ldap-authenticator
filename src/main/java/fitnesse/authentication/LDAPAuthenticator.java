@@ -10,7 +10,6 @@ import javax.naming.ldap.LdapContext;
 import java.util.Properties;
 
 
-@SuppressWarnings({"ProtectedField"})
 public class LDAPAuthenticator extends Authenticator {
 
 	protected Properties properties;
@@ -18,7 +17,6 @@ public class LDAPAuthenticator extends Authenticator {
 	private static final String DIGEST_MD5_AUTHENTICATION = "DIGEST-MD5";
 
 
-	@SuppressWarnings({"AssignmentToCollectionOrArrayFieldFromParameter"})
 	public LDAPAuthenticator(Properties properties) {
 		this.properties = properties;
 	}
@@ -28,36 +26,30 @@ public class LDAPAuthenticator extends Authenticator {
 	public boolean isAuthenticated(String username, String password) throws Exception {
 		if (username == null || password == null) return false;
 
-		String usernameAttribute = getProperty("ldap.username.attribute");
-		String domainName = getProperty("ldap.domain.name");
-		String serverName = getProperty("ldap.server.name");
-		String queryUsername = getProperty("ldap.queryuser.username");
-		String queryPassword = getProperty("ldap.queryuser.password");
-		String requiredGroup = getProperty("ldap.required.group");
-		String ldapURL = "ldaps://" + serverName + "." + domainName + '/';
+		String ldapUrl = ldapUrl();
 
-		log("Authenticating " + username + " through " + ldapURL);
+		log("Authenticating " + username + " through " + ldapUrl);
 
 		boolean authenticated = false;
 		LdapContext context = null;
 		try {
-			Properties props = setupAuthorizedEnv(queryUsername, queryPassword);
-			context = ldapContextFactory.create(ldapURL, props);
+			Properties props = setupAuthorizedEnv();
+			context = ldapContextFactory.create(ldapUrl, props);
 			log("Authentication succeeded for query user");
-
-			SearchControls controls = new SearchControls();
-			controls.setSearchScope(SearchControls.SUBTREE_SCOPE);
 
             applyUserAuthentication(context, username, password);
 
-            String userPrincipalName = username + "@" + domainName;
-            String searchBase = domainToSearchBase(domainName);
-            String secureGroupRestriction = "(memberOf=CN=" + requiredGroup + ",OU=Security Groups," + searchBase + "))";
-            String ldapQuery = "(&(" + usernameAttribute + "=" + username + ")(objectClass=user)" +
-                            "(userPrincipalName=" + userPrincipalName + ")" + secureGroupRestriction + ")";
+            String userPrincipalName = username + "@" + domainName();
+
+            String ldapQuery = "(&(" + usernameAttribute() + "=" + username + ")(objectClass=user)" +
+                            "(userPrincipalName=" + userPrincipalName + ")" + securityGroupFilter() + ")";
             log(ldapQuery);
-            NamingEnumeration<SearchResult> searchResults = context.search(searchBase, ldapQuery, controls);
-			if (searchResults.hasMore()) {
+
+            SearchControls controls = new SearchControls();
+            controls.setSearchScope(SearchControls.SUBTREE_SCOPE);
+            NamingEnumeration<SearchResult> searchResults = context.search(searchBase(), ldapQuery, controls);
+
+            if (searchResults.hasMore()) {
                 authenticated = true;
                 log("Authenticated succedded for " + username);
             }
@@ -75,8 +67,37 @@ public class LDAPAuthenticator extends Authenticator {
 		return authenticated;
 	}
 
-	private Properties setupAuthorizedEnv(String queryUsername, String queryPassword) {
-		Properties authEnvProperties = new Properties();
+    private String usernameAttribute() {
+        return getProperty("ldap.username.attribute");
+    }
+
+    private String ldapUrl() {
+        String serverName = getProperty("ldap.server.name");
+        return "ldaps://" + serverName + "." + domainName() + '/';
+    }
+
+    private String domainName() {
+        return getProperty("ldap.domain.name");
+    }
+
+    private String searchBase() {
+        return domainToSearchBase(domainName());
+    }
+
+    private String securityGroupFilter() {
+        String securityGroup = getProperty("ldap.security.group");
+        String searchBase = searchBase();
+        return isEmpty(securityGroup) ? "" : "(memberOf=CN=" + securityGroup + ",OU=Security Groups," + searchBase + "))";
+    }
+
+    private boolean isEmpty(String value) {
+        return value == null || value.length() == 0;
+    }
+
+    private Properties setupAuthorizedEnv() {
+        String queryUsername = getProperty("ldap.queryuser.username");
+        String queryPassword = getProperty("ldap.queryuser.password");
+        Properties authEnvProperties = new Properties();
 		authEnvProperties.setProperty(Context.SECURITY_AUTHENTICATION, DIGEST_MD5_AUTHENTICATION);
 		authEnvProperties.setProperty(Context.SECURITY_PRINCIPAL, queryUsername);
 		authEnvProperties.setProperty(Context.SECURITY_CREDENTIALS, queryPassword);
@@ -106,8 +127,8 @@ public class LDAPAuthenticator extends Authenticator {
 
 	private String getProperty(String key) {
 		if (properties == null) return "";
-		if (properties.getProperty(key) == null) {
-			System.out.println("Property not found [" + key + "] in plugins.properties");
+		if (isEmpty(properties.getProperty(key))) {
+			log("Property not found [" + key + "] in plugins.properties");
 			return "";
 		}
 		else {
