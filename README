@@ -8,7 +8,7 @@ To use:
       Authenticator=fitnesse.authentication.LDAPAuthenticator
       ldap.domain.name=mysubdomain.mydomain.com
       ldap.server.name=ldapserver
-      ldap.username.attribute=AccountName
+      ldap.username.attribute=sAMAccountName
       ldap.queryuser.username=queryuser
       ldap.queryuser.password=querypass
       ldap.security.group=testgroup
