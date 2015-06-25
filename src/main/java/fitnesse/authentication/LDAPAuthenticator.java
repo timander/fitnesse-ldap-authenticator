@@ -22,8 +22,7 @@ public class LDAPAuthenticator extends Authenticator {
 	}
 
 
-	@Override
-	public boolean isAuthenticated(String username, String password) throws Exception {
+	public boolean isAuthenticated(String username, String password) {
 		if (username == null || password == null) return false;
 
 		String ldapUrl = ldapUrl();
@@ -62,7 +61,12 @@ public class LDAPAuthenticator extends Authenticator {
 			log("Failed to bind to LDAP / get account information: " + e);
 		}
 		finally {
-			if (context != null) context.close();
+			try {
+				if (context != null) context.close();
+			}
+			catch(NamingException e) {
+				log( "Context failed to close: " + e);
+			}
 		}
 		return authenticated;
 	}
